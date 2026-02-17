@@ -1,18 +1,24 @@
 
 # [-> Click Here for Block Chain Dev List Concepts Demo <-](https://openresearchcommunicationsystem.github.io/Proof_Of_Concept-BlockChain-DevList-Tools/)
 
-ORCS Mission: To present practical, open-source proofs of concept that address common challenges in OSINT, PAI, and CAI workflows — empowering stakeholders to develop tailored requirements and solutions.
+---
 
-GitHub: [ORCS GitHub](https://github.com/OpenResearchCommunicationSystem)
+## Summary
 
-YouTube: [ORCS Youtube](https://www.youtube.com/channel/UC0hlqOtxWemIo7AIR0KkCfg)
+| What these tools demonstrate | Why it matters |
+|---|---|
+| Analyst defines the query before pulling data | Fewer, smaller API calls per investigation |
+| Persistent team memory via Dev Lists | No duplicate pulls, no re-discovery, no lost context |
+| Saved filters with one-click re-apply | No re-entering known parameters; loads unfiltered to prevent silent exclusion |
+| Selective clipboard export | Analysts export what matters, not everything |
+| Cross-investigation discovery | Connections across cases detected automatically |
+| Tertiary analysis with nine structured queries | Guided exploration without full graph rendering |
+| Plain language clipboard with multiple export formats | Eliminates retyping; preserves attribution across formats |
+| Front-end operations for most features | Near-zero additional server cost; scales across users with minimal infrastructure expense |
 
-Blog: [ORCS Blog](https://publish.obsidian.md/openresearchcommunicationssystem)
+The concept is not that existing tools are insufficient. It is that the workflow around those tools can be made more efficient — and that many of the improvements are lightweight, front-end operations that cost relatively little to build and very little to run.
 
-Other Active Proof's of concept
-
-[Data to Plain Language Clipboard](https://openresearchcommunicationsystem.github.io/Proof-of-Concept-Data-to-Plain-Language-Clip-Board/)
-
+The analyst already does the hard work of knowing what to look for. These tools make sure the machine does not waste their time making them do it the hard way.
 
 ## The Premise
 
@@ -292,21 +298,16 @@ Key points:
 
 Together, the two proof of concepts cover the full analytical cycle: the blockchain tools show how to find what matters efficiently, and the plain language clipboard shows how to get it out in the format the audience actually needs.
 
+
 ---
+ORCS Mission: To present practical, open-source proofs of concept that address common challenges in OSINT, PAI, and CAI workflows — empowering stakeholders to develop tailored requirements and solutions.
 
-## Summary
+GitHub: [ORCS GitHub](https://github.com/OpenResearchCommunicationSystem)
 
-| What these tools demonstrate | Why it matters |
-|---|---|
-| Analyst defines the query before pulling data | Fewer, smaller API calls per investigation |
-| Persistent team memory via Dev Lists | No duplicate pulls, no re-discovery, no lost context |
-| Saved filters with one-click re-apply | No re-entering known parameters; loads unfiltered to prevent silent exclusion |
-| Selective clipboard export | Analysts export what matters, not everything |
-| Cross-investigation discovery | Connections across cases detected automatically |
-| Tertiary analysis with nine structured queries | Guided exploration without full graph rendering |
-| Plain language clipboard with multiple export formats | Eliminates retyping; preserves attribution across formats |
-| Front-end operations for most features | Near-zero additional server cost; scales across users with minimal infrastructure expense |
+YouTube: [ORCS Youtube](https://www.youtube.com/channel/UC0hlqOtxWemIo7AIR0KkCfg)
 
-The concept is not that existing tools are insufficient. It is that the workflow around those tools can be made more efficient — and that many of the improvements are lightweight, front-end operations that cost relatively little to build and very little to run.
+Blog: [ORCS Blog](https://publish.obsidian.md/openresearchcommunicationssystem)
 
-The analyst already does the hard work of knowing what to look for. These tools make sure the machine does not waste their time making them do it the hard way.
+Other Active Proof's of concept
+
+[Data to Plain Language Clipboard](https://openresearchcommunicationsystem.github.io/Proof-of-Concept-Data-to-Plain-Language-Clip-Board/)
