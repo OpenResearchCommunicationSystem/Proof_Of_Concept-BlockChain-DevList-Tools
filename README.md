@@ -1,7 +1,7 @@
 
 # [-> Click Here for Block Chain Dev List Concepts Demo <-](https://openresearchcommunicationsystem.github.io/Proof_Of_Concept-BlockChain-DevList-Tools/)
 
-### The "depth" tool is not operational in this demo, it is a place holder
+### Note: The "depth" tool is not operational in this demo, it is a place holder
 
 ---
 
@@ -52,7 +52,7 @@ There is no persistent team memory. Every analyst starts from zero.
 
 ### The Re-Entry Problem
 
-An analyst develops a set of filter parameters that work well for a particular type of investigation. Income direction, depth of two hops, minimum 5% of total flow. They use these parameters three times a week. Every time, they re-enter them from scratch.
+An analyst develops a set of filter parameters that work well for a particular type of investigation. Income direction, depth of two hops (not currently operational) , minimum 5% of total flow. They use these parameters three times a week. Every time, they re-enter them from scratch.
 
 If they are disciplined, they wrote the parameters down somewhere. If they are not, they reconstruct them from memory. Either way, the tool does not remember.
 
@@ -90,7 +90,7 @@ Every feature in these proof-of-concept tools expresses one idea:
 
 Flow Analysis starts with a target address and asks: where does money come from, and where does it go? But instead of pulling every transaction and rendering a link chart, it asks the analyst to define the question first.
 
-**Filtered, directed pulls.** The analyst sets direction (income or expense), depth (how many hops), and minimum percentage (ignore anything below this threshold). On a live API, this translates to a bounded query — a fraction of the calls that a full address pull would require.
+**Filtered, directed pulls.** The analyst sets direction (income or expense), depth (how many hops, not operational in demo), and minimum percentage (ignore anything below this threshold). On a live API, this translates to a bounded query — a fraction of the calls that a full address pull would require.
 
 **Counterparty breakdown.** Results appear as a table showing each counterparty's share of total flow. Not a hairball graph with a thousand nodes. A ranked list that an analyst can read in seconds.
 
@@ -132,7 +132,7 @@ Every feature in these tools reduces API calls or eliminates redundant work. Thi
 
 | Without targeted filtering | With targeted filtering |
 |---|---|
-| Pull full address history (all transactions, all time) | Pull transactions matching direction, depth, time window, and threshold |
+| Pull full address history (all transactions, all time) | Pull transactions matching direction, depth (not operational in demo), time window, and threshold |
 | Download to Excel, apply filters manually | Results arrive pre-filtered, ready for analysis |
 | Re-pull when parameters change | Adjust parameters and re-query with bounded scope |
 
