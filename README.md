@@ -1,6 +1,8 @@
 
 # [-> Click Here for Block Chain Dev List Concepts Demo <-](https://openresearchcommunicationsystem.github.io/Proof_Of_Concept-BlockChain-DevList-Tools/)
 
+### The "depth" tool is not operational in this demo, it is a place holder
+
 ---
 
 ## Summary
