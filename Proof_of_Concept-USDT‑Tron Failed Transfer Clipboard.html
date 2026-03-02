@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>USDT‑Tron Failed Transfer Clipboard (Vendor-Compatible)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ :root{
+  --background:#fff;--foreground:#171717;--muted:#f5f5f5;--muted-foreground:#737373;
+  --primary:#0066cc;--primary-foreground:#fff;--border:#e5e5e5;--card:#fafafa;--card-border:#e5e5e5;--radius:8px;
+  --fail:#dc2626;
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ }
+ body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);line-height:1.6;margin:0}
+ .container{max-width:980px;margin:0 auto;padding:40px 16px}
+ h1{font-size:22px;margin:0 0 6px;font-weight:600}
+ .subtitle{color:var(--muted-foreground);font-size:14px;margin-bottom:16px}
+ .card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;margin-bottom:16px}
+ textarea,input{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;background:var(--background);color:var(--foreground)}
+ textarea{min-height:160px}
+ .row{display:grid;grid-template-columns:1fr;gap:12px}
+ @media(min-width:768px){.row-2{grid-template-columns:1fr 1fr}}
+ .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:var(--radius);border:1px solid var(--border);background:#fff;cursor:pointer}
+ .btn-primary{background:var(--primary);color:var(--primary-foreground);border:none}
+ .btn:disabled{opacity:.5;cursor:not-allowed}
+ .toggle{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+ .toggle button{flex:1;padding:8px 12px;background:#fff;border:none;cursor:pointer;color:var(--muted-foreground)}
+ .toggle button.active{background:var(--primary);color:#fff}
+ .output{min-height:140px}
+ .list{list-style:disc;padding-left:20px;margin:0}
+ .footnotes{border-top:1px solid var(--border);margin-top:12px;padding-top:12px}
+ .toast{position:fixed;bottom:24px;right:24px;background:#171717;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transform:translateY(100px);transition:.3s}
+ .toast.show{opacity:1;transform:translateY(0)}
+ .graph-row{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0}
+ .graph-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--fail);color:var(--fail);display:flex;align-items:center;justify-content:center;font-weight:600}
+ .graph-edge{flex:1;display:flex;flex-direction:column;align-items:center}
+ .graph-line{width:100%;height:2px;background:var(--fail)}
+ .graph-label{font-size:12px;color:#555;text-align:center}
+ .inline{display:flex;align-items:center;gap:10px}
+ .meta{font-size:12px;color:#555}
+</style>
+</head>
+<body>
+<div class="container">
+ <header>
+  <h1>USDT‑Tron Failed Transfer Clipboard</h1>
+  <p class="subtitle">
+    Paste the <strong>TronScan failed transaction block</strong>. We parse:
+    <em>Sender</em>, <em>Receiver</em>, <em>Attempted Amount (rounded; for narrative)</em>,
+    <em>Full Timestamp</em> (<code>YYYY‑MM‑DD HH:MM:SSZ</code>), and <em>Txn Hash</em>.
+    Vendor exports are <strong>transfers</strong> and strictly match the two schemas (Graph & Address). No external calls; processing is local.
+  </p>
+ </header>
+
+ <!-- Input -->
+ <div class="card">
+  <div class="row">
+   <label for="paste">Paste Failed Transaction Block (from TronScan)</label>
+   <textarea id="paste" placeholder="Example:
+TUQSySqwm6VEiHZbct6ifunzwaqCGA73Sv
+transferred
+100Tether USD USDT
+to
+TYoVJRdXwb5VxGPNspwC6XhpF2jt5raLbT
+(Failed)
+Hash:
+1b6be19203bdfbb4f40b669dc34ed550f3b53b052e7930cbb405f36ba46dade1
+Result:  Failed -Transaction Revert&gt;
+Block &amp; Time: 80224731|
+2026-02-17 14:39:12 (Local)"></textarea>
+  </div>
+  <div class="row row-2" style="margin-top:12px;">
+   <button id="parseBtn" class="btn btn-primary">Parse (Add to Clipboard)</button>
+   <button id="undoBtn" class="btn" disabled>Undo Last Add</button>
+   <button id="clearBtn" class="btn">Clear Clipboard</button>
+  </div>
+  <div class="inline" style="margin-top:10px;">
+   <label class="inline" for="persistToggle">
+    <input type="checkbox" id="persistToggle" checked>
+    Persist clipboard in this browser
+   </label>
+  </div>
+  <p class="subtitle" style="margin-top:6px;">
+    We assume <strong>one transaction per paste</strong>. Timestamp must be present; we will append <code>Z</code> (assume local is Z). Asset is always <strong>USDT</strong>.
+    Vendor CSVs store <strong>Amount = 0</strong> and <strong>Amount USD = 0</strong>; narrative appears in Notes for the Graph format, and in the Asset string for the Address format (per your request).
+  </p>
+ </div>
+
+ <!-- Preview -->
+ <div class="card">
+  <div class="toggle" id="inputToggle">
+   <button data-mode="table" class="active">Table</button>
+   <button data-mode="graph">Graph</button>
+  </div>
+  <div id="inputPreview" class="output" style="margin-top:12px;white-space:pre-wrap;color:#333;"></div>
+ </div>
+
+ <!-- Output / Statements / Graph / Leads -->
+ <div class="card">
+  <div class="toggle" id="viewToggle">
+   <button data-view="statements" class="active">Statements</button>
+   <button data-view="graph">Graph</button>
+   <button data-view="leads">Leads</button>
+  </div>
+  <div class="toggle" id="citeToggle" style="margin-top:8px;">
+   <button data-mode="none" class="active">No Cite</button>
+   <button data-mode="inline">In‑Text Cite</button>
+   <button data-mode="footnote">Footnote Cite</button>
+  </div>
+  <div id="statementsArea" class="output" style="margin-top:12px;">
+   <ul id="statementsList" class="list"></ul>
+   <div id="footnotes" class="footnotes" style="display:none;">
+    <strong>Footnotes</strong>
+    <ol id="footnotesList" style="margin:6px 0 0 18px;"></ol>
+   </div>
+   <div id="graphArea" style="display:none;"></div>
+   <div id="leadsArea" style="display:none;">
+    <ul id="leadsList" class="list"></ul>
+   </div>
+  </div>
+ </div>
+
+ <!-- Export / Clipboard -->
+ <div class="card">
+  <div id="clipboardMeta" class="subtitle" style="margin-bottom:8px;">
+   Clipboard: 0 statements
+  </div>
+  <div class="row row-2">
+   <button id="copyBtn" class="btn" disabled>Copy as Plain Text</button>
+   <button id="rtfBtn" class="btn btn-primary" disabled>Download RTF (Word)</button>
+
+   <!-- (Optional) internal CSVs -->
+   <button id="csvSingleBtn" class="btn" disabled>CSV (Relationship Table)</button>
+   <button id="csvNodeEdgeBtn" class="btn" disabled>CSV (Node/Edge + Attributes)</button>
+
+   <!-- Vendor-compatible transfers CSVs -->
+   <button id="csvVendorGraphBtn" class="btn btn-primary" disabled>CSV (Transfers — Vendor Graph)</button>
+   <button id="csvVendorAddressBtn" class="btn btn-primary" disabled>CSV (Transfers — Vendor Address)</button>
+
+   <button id="walletsCsvBtn" class="btn" disabled>CSV (All Addresses Deduped)</button>
+   <button id="leadsCsvBtn" class="btn" disabled>CSV (Lead Addresses)</button>
+  </div>
+  <p class="subtitle" style="margin-top:10px;">
+    Vendor Graph format: <code>Type, Chain, Txn Hash, Timestamp, From, To, Asset, Value, Value USD, Notes</code>.
+    Vendor Address format: <code>Date, Txn Hash, Address, Counterparties, Direction, Amount, Amount USD, Asset, Running Balance Raw, Selected Address</code>.
+    Exports are offline and match vendor schemas strictly.
+  </p>
+ </div>
+
+ <p class="meta">Build: USDT‑Tron Failed Transfer Clipboard (Vendor-Compatible, offline, single‑file HTML)</p>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+ // === State ===
+ let parsed = { sender:null, receiver:null, amountRaw:null, amountInt:null, amountDisplay:null, dateOnly:null, timestampZ:null, hash:null };
+ let entries = [];       // clipboard entries
+ let batches = [];       // batch sizes per parse (for undo)
+ let citeMode = "none";  // none | inline | footnote
+ let viewMode = "statements";  // statements | graph | leads
+ let inputMode = "table";       // table | graph
+
+ // === Elements ===
+ const pasteEl = document.getElementById('paste');
+ const parseBtn = document.getElementById('parseBtn');
+ const undoBtn = document.getElementById('undoBtn');
+ const clearBtn = document.getElementById('clearBtn');
+ const persistToggle = document.getElementById('persistToggle');
+
+ const inputToggle = document.getElementById('inputToggle');
+ const viewToggle = document.getElementById('viewToggle');
+ const citeToggle = document.getElementById('citeToggle');
+
+ const inputPreview = document.getElementById('inputPreview');
+ const statementsList = document.getElementById('statementsList');
+ const footnotesBox = document.getElementById('footnotes');
+ const footnotesList = document.getElementById('footnotesList');
+ const graphArea = document.getElementById('graphArea');
+ const leadsArea = document.getElementById('leadsArea');
+ const leadsList = document.getElementById('leadsList');
+
+ const copyBtn = document.getElementById('copyBtn');
+ const rtfBtn = document.getElementById('rtfBtn');
+ const csvSingleBtn = document.getElementById('csvSingleBtn');
+ const csvNodeEdgeBtn = document.getElementById('csvNodeEdgeBtn');
+
+ const csvVendorGraphBtn = document.getElementById('csvVendorGraphBtn');
+ const csvVendorAddressBtn = document.getElementById('csvVendorAddressBtn');
+
+ const walletsCsvBtn = document.getElementById('walletsCsvBtn');
+ const leadsCsvBtn = document.getElementById('leadsCsvBtn');
+
+ const toastEl = document.getElementById('toast');
+ const clipboardMeta = document.getElementById('clipboardMeta');
+
+ // === Local Storage Keys ===
+ const LS_KEY = 'tronFailedClipboardEntries';
+ const LS_BATCH_KEY = 'tronFailedClipboardBatches';
+ const LS_PERSIST_KEY = 'tronFailedClipboardPersist';
+
+ function saveClipboard(){
+  if(!persistToggle.checked) return;
+  localStorage.setItem(LS_KEY, JSON.stringify(entries));
+  localStorage.setItem(LS_BATCH_KEY, JSON.stringify(batches));
+ }
+
+ function loadClipboard(){
+  const persistVal = localStorage.getItem(LS_PERSIST_KEY);
+  if(persistVal !== null) persistToggle.checked = (persistVal === 'true');
+  if(persistToggle.checked){
+    try{ const e = localStorage.getItem(LS_KEY); entries = e? JSON.parse(e) : []; }catch{ entries=[]; }
+    try{ const b = localStorage.getItem(LS_BATCH_KEY); batches = b? JSON.parse(b) : []; }catch{ batches=[]; }
+  }
+ }
+
+ persistToggle.addEventListener('change', ()=>{
+  localStorage.setItem(LS_PERSIST_KEY, persistToggle.checked ? 'true' : 'false');
+  if(!persistToggle.checked){
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_BATCH_KEY);
+    showToast('Persistence disabled; clipboard will not be saved to browser.');
+  }else{
+    saveClipboard();
+    showToast('Persistence enabled; clipboard saved to browser.');
+  }
+ });
+
+ // === Utilities ===
+ function showToast(msg, isError=false){
+  toastEl.textContent = msg;
+  toastEl.style.background = isError ? '#dc2626' : '#171717';
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 2500);
+ }
+
+ function escapeRtf(text){
+  return String(text).replace(/\\/g,'\\\\').replace(/\{/g,'\\{').replace(/\}/g,'\\}');
+ }
+
+ function downloadFile(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+ }
+
+ function escCSV(val){
+  const s = String(val);
+  if(s.includes('"') || s.includes(',') || s.includes('\n')) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+ }
+
+ function formatWithCommas(n){
+  const s = String(n);
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+ }
+
+ function renderClipboardMeta(){
+  clipboardMeta.textContent = `Clipboard: ${entries.length} statement${entries.length===1?'':'s'}`;
+  undoBtn.disabled = batches.length === 0;
+  const has = entries.length>0;
+  csvVendorGraphBtn.disabled = !has;
+  csvVendorAddressBtn.disabled = !has;
+ }
+
+ function computeSets(){
+  const senders = new Set();
+  const receivers = new Set();
+  entries.forEach(e => { senders.add(e.sender); receivers.add(e.receiver); });
+  const all = new Set([...senders, ...receivers]);
+  const leads = new Set([...receivers].filter(x => ![...senders].includes(x)));
+  const sortAsc = arr => arr.slice().sort((a,b)=>a.localeCompare(b));
+  return { senders: sortAsc([...senders]), receivers: sortAsc([...receivers]), all: sortAsc([...all]), leads: sortAsc([...leads]) };
+ }
+
+ // === Parsing (one txn per paste) ===
+ function parseFailedTransferBlock(raw){
+  const linesRaw = raw.split(/\r?\n/);
+  const lines = linesRaw.map(l => l.trim()).filter(l => l.length > 0);
+
+  const addrRe = /(T[a-zA-Z0-9]{33})/;
+  const hashRe = /\b([0-9a-fA-F]{64})\b/;
+  const amountLineRe = /^([\d,]+(?:\.\d+)?)\s*[A-Za-z ]*USDT\b/i;
+
+  let sender = null;
+  let receiver = null;
+  let amountRaw = null;
+  let amountInt = null;
+  let amountDisplay = null;
+  let dateOnly = null;
+  let timestampZ = null;
+  let hash = null;
+
+  const transferredIdx = lines.findIndex(l => /transferred/i.test(l));
+  if(transferredIdx !== -1){
+    for(let k = transferredIdx - 1; k >= 0; k--){
+      const m = lines[k].match(addrRe);
+      if(m){ sender = m[1]; break; }
+    }
+    for(let k = transferredIdx + 1; k < lines.length; k++){
+      const am = lines[k].match(amountLineRe);
+      if(am){
+        amountRaw = am[1];
+        break;
+      }
+    }
+  }
+
+  const toIdx = lines.findIndex(l => /^to$/i.test(l));
+  if(toIdx !== -1){
+    for(let k = toIdx + 1; k < lines.length; k++){
+      const m = lines[k].match(addrRe);
+      if(m){ receiver = m[1]; break; }
+    }
+  }
+
+  const hashHdrIdx = lines.findIndex(l => /^hash\s*:?\s*$/i.test(l));
+  if(hashHdrIdx !== -1){
+    for(let k = hashHdrIdx + 1; k < lines.length; k++){
+      const hm = lines[k].match(hashRe);
+      if(hm){ hash = hm[1]; break; }
+    }
+  }
+  if(!hash){
+    for(const l of lines){ const hm = l.match(hashRe); if(hm){ hash = hm[1]; break; } }
+  }
+
+  // Full timestamp: YYYY-MM-DD HH:MM:SS -> append Z
+  const fullTsRe = /\b(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\b/;
+  for(const l of lines){
+    const tm = l.match(fullTsRe);
+    if(tm){
+      dateOnly = tm[1];
+      timestampZ = `${tm[1]} ${tm[2]}Z`; // assume local is Z
+      break;
+    }
+  }
+
+  // Amount normalization for narrative only
+  if(amountRaw != null){
+    const clean = String(amountRaw).replace(/,/g,'');
+    let n = parseFloat(clean);
+    if(!isFinite(n)) n = null;
+    if(n != null){
+      const rounded = Math.round(n);
+      amountInt = String(rounded);
+      amountDisplay = formatWithCommas(rounded);
+    }
+  }
+
+  return { sender, receiver, amountRaw, amountInt, amountDisplay, dateOnly, timestampZ, hash };
+ }
+
+ // === Build entries (APPEND) ===
+ function buildEntry(p){
+  const fails = [];
+  if(!p.sender) fails.push('Sender not found');
+  if(!p.receiver) fails.push('Receiver not found');
+  if(!p.amountInt) fails.push('Attempted amount not found or unparsable');
+  if(!p.timestampZ) fails.push('Full timestamp not found');
+  if(!p.hash) fails.push('Txn Hash not found');
+  if(fails.length){ showToast(`Parse error: ${fails.join('; ')}`, true); return null; }
+
+  const entry = {
+    sender: p.sender,
+    receiver: p.receiver,
+    amountInt: p.amountInt,
+    amountDisplay: p.amountDisplay,
+    dateOnly: p.dateOnly,
+    timestampZ: p.timestampZ,
+    hash: p.hash
+  };
+  entries.push(entry);
+  batches.push(1);
+  return entry;
+ }
+
+ // === Rendering ===
+ function renderInputPreview(){
+  if(!parsed.sender && !parsed.receiver){
+    inputPreview.textContent = 'Paste the TronScan failed transaction block and click Parse.';
+    return;
+  }
+  if(inputMode==='table'){
+    const rows = [];
+    rows.push(`Sender (Selected Address): ${parsed.sender ?? '—'}`);
+    rows.push(`Receiver (Address): ${parsed.receiver ?? '—'}`);
+    rows.push(`Attempted Amount (narrative): ${parsed.amountDisplay ?? '—'} USDT`);
+    rows.push(`Timestamp (vendor): ${parsed.timestampZ ?? '—'}`);
+    rows.push(`Txn Hash: ${parsed.hash ?? '—'}`);
+    inputPreview.textContent = rows.join('\n');
+  }else{
+    inputPreview.innerHTML = '';
+    const sLab = parsed.sender ?? 'S';
+    const rLab = parsed.receiver ?? 'R';
+    const div = document.createElement('div'); div.className='graph-row';
+    const s = document.createElement('div'); s.className='graph-circle'; s.textContent='S';
+    const sLabel = document.createElement('div'); sLabel.className='graph-label'; sLabel.textContent=sLab;
+    const left = document.createElement('div'); left.style.display='flex'; left.style.flexDirection='column'; left.style.alignItems='center';
+    left.appendChild(s); left.appendChild(sLabel);
+
+    const edge = document.createElement('div'); edge.className='graph-edge';
+    const elabel = document.createElement('div'); elabel.className='graph-label';
+    elabel.textContent = `Failed Transfer: ${parsed.amountDisplay ?? '—'} USDT • ${parsed.dateOnly ?? '—'}`;
+    const line = document.createElement('div'); line.className='graph-line';
+    edge.appendChild(elabel); edge.appendChild(line);
+
+    const rWrap = document.createElement('div'); rWrap.style.display='flex'; rWrap.style.flexDirection='column'; rWrap.style.alignItems='center';
+    const rCircle = document.createElement('div'); rCircle.className='graph-circle'; rCircle.textContent='R';
+    const rLabel = document.createElement('div'); rLabel.className='graph-label'; rLabel.textContent=rLab;
+    rWrap.appendChild(rCircle); rWrap.appendChild(rLabel);
+
+    div.appendChild(left); div.appendChild(edge); div.appendChild(rWrap);
+    inputPreview.appendChild(div);
+  }
+ }
+
+ function renderOutput(){
+  const has = entries.length>0;
+
+  const sets = computeSets();
+  copyBtn.disabled = !has || viewMode!=='statements';
+  rtfBtn.disabled = !has || viewMode!=='statements';
+  csvSingleBtn.disabled = !has;
+  csvNodeEdgeBtn.disabled = !has;
+  csvVendorGraphBtn.disabled = !has;
+  csvVendorAddressBtn.disabled = !has;
+  walletsCsvBtn.disabled = !has;
+  leadsCsvBtn.disabled = sets.leads.length===0;
+
+  statementsList.innerHTML='';
+  graphArea.style.display = (viewMode==='graph' && has) ? 'block' : 'none';
+  leadsArea.style.display = (viewMode==='leads' && has) ? 'block' : 'none';
+  footnotesBox.style.display = (citeMode==='footnote' && viewMode==='statements' && has) ? 'block' : 'none';
+
+  if(!has){
+    footnotesList.innerHTML = '';
+    graphArea.innerHTML = '';
+    leadsList.innerHTML = '';
+    renderClipboardMeta();
+    return;
+  }
+
+  if(viewMode==='statements'){
+    entries.forEach((e,i)=>{
+      const li=document.createElement('li');
+      const span=document.createElement('span');
+      let stmt = `${e.sender} on ${e.dateOnly}, attempted but failed to transfer ${e.amountDisplay} USDT to ${e.receiver}.`;
+      if(citeMode==='inline'){
+        stmt += ` (TronScan.io, Txn Hash: ${e.hash})`;
+        span.textContent = stmt;
+      }else if(citeMode==='footnote'){
+        span.textContent = stmt + ' ';
+        const sup=document.createElement('sup'); sup.textContent = (i+1);
+        span.appendChild(sup);
+      }else{
+        span.textContent = stmt;
+      }
+      li.appendChild(span);
+      statementsList.appendChild(li);
+    });
+
+    if(citeMode==='footnote'){
+      footnotesList.innerHTML='';
+      entries.forEach((e)=>{
+        const li=document.createElement('li');
+        li.textContent = `TronScan.io, Txn Hash: ${e.hash}`;
+        footnotesList.appendChild(li);
+      });
+    }
+    graphArea.innerHTML='';
+    leadsList.innerHTML='';
+  }else if(viewMode==='graph'){
+    graphArea.innerHTML='';
+    leadsList.innerHTML='';
+    entries.forEach(e=>{
+      const row=document.createElement('div'); row.className='graph-row';
+      const s=document.createElement('div'); s.className='graph-circle'; s.textContent='S';
+      const sLabel=document.createElement('div'); sLabel.className='graph-label'; sLabel.textContent=e.sender;
+      const left=document.createElement('div'); left.style.display='flex'; left.style.flexDirection='column'; left.style.alignItems='center';
+      left.appendChild(s); left.appendChild(sLabel);
+
+      const edge=document.createElement('div'); edge.className='graph-edge';
+      const elabel=document.createElement('div'); elabel.className='graph-label';
+      elabel.textContent=`Failed Transfer • ${e.amountDisplay} USDT • ${e.dateOnly}`;
+      const line=document.createElement('div'); line.className='graph-line'; edge.appendChild(elabel); edge.appendChild(line);
+
+      const rWrap=document.createElement('div'); rWrap.style.display='flex'; rWrap.style.flexDirection='column'; rWrap.style.alignItems='center';
+      const rC=document.createElement('div'); rC.className='graph-circle'; rC.textContent='R';
+      const rLabel=document.createElement('div'); rLabel.className='graph-label'; rLabel.textContent=e.receiver;
+      rWrap.appendChild(rC); rWrap.appendChild(rLabel);
+
+      row.appendChild(left); row.appendChild(edge); row.appendChild(rWrap);
+      graphArea.appendChild(row);
+    });
+  }else{
+    graphArea.innerHTML='';
+    footnotesList.innerHTML='';
+    leadsList.innerHTML='';
+    sets.leads.forEach(addr=>{
+      const li=document.createElement('li');
+      li.textContent = addr;
+      leadsList.appendChild(li);
+    });
+  }
+  renderClipboardMeta();
+ }
+
+ function generateRTF(){
+  let r = "{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0\\fnil Arial;}}\n\\pard\\f0\\fs22\n";
+  entries.forEach((e)=>{
+    const stmt = `${escapeRtf(e.sender)} on ${escapeRtf(e.dateOnly)}, attempted but failed to transfer ${escapeRtf(e.amountDisplay)} USDT to ${escapeRtf(e.receiver)}.`;
+    const src = `TronScan.io, Txn Hash: ${escapeRtf(e.hash)}`;
+    r += "{\\pntext\\f0 \\bullet\\tab}{\\*\\pn\\pnlvlblt\\pnf0\\pnindent0{\\pntxtb \\bullet}}\\fi-360\\li720\n";
+    if(citeMode==='footnote'){
+      r += `${stmt}{\\super\\chftn}{\\footnote\\pard\\plain\\fs20 {\\super\\chftn} ${src}\\par}\\par\n`;
+    }else if(citeMode==='inline'){
+      r += `${stmt} (${src})\\par\n`;
+    }else{
+      r += `${stmt}\\par\n`;
+    }
+  });
+  r += "}";
+  return r;
+ }
+
+ // === Events ===
+ parseBtn.addEventListener('click', ()=>{
+  const raw = pasteEl.value;
+  parsed = parseFailedTransferBlock(raw);
+  const added = buildEntry(parsed);
+  if(!added){ renderInputPreview(); return; }
+
+  saveClipboard();
+  pasteEl.value = '';
+  parsed = { sender:null, receiver:null, amountRaw:null, amountInt:null, amountDisplay:null, dateOnly:null, timestampZ:null, hash:null };
+
+  renderInputPreview();
+  renderOutput();
+  showToast('Parsed successfully. Ready for next paste');
+ });
+
+ undoBtn.addEventListener('click', ()=>{
+  if(batches.length===0){ return; }
+  const count = batches.pop() || 0;
+  if(count>0){
+    entries.splice(entries.length - count, count);
+    saveClipboard();
+    renderOutput();
+    showToast(`Undid last add (${count} statement${count===1?'':'s'})`);
+  }
+ });
+
+ clearBtn.addEventListener('click', ()=>{
+  pasteEl.value='';
+  parsed = { sender:null, receiver:null, amountRaw:null, amountInt:null, amountDisplay:null, dateOnly:null, timestampZ:null, hash:null };
+  entries = [];
+  batches = [];
+  saveClipboard();
+  renderInputPreview();
+  renderOutput();
+  showToast('Clipboard cleared');
+ });
+
+ inputToggle.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  inputMode = btn.getAttribute('data-mode');
+  inputToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInputPreview();
+ });
+
+ viewToggle.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  viewMode = btn.getAttribute('data-view');
+  viewToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOutput();
+ });
+
+ citeToggle.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  citeMode = btn.getAttribute('data-mode');
+  citeToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOutput();
+ });
+
+ copyBtn.addEventListener('click', ()=>{
+  if(entries.length===0 || viewMode!=='statements'){ showToast('Nothing to copy', true); return; }
+  let text='';
+  if(citeMode==='footnote'){
+    text = entries.map((e,i)=>`• ${e.sender} on ${e.dateOnly}, attempted but failed to transfer ${e.amountDisplay} USDT to ${e.receiver}. [${i+1}]`).join('\n')
+      + '\n\n' + entries.map((e,i)=>`${i+1}. TronScan.io, Txn Hash: ${e.hash}`).join('\n');
+  }else if(citeMode==='inline'){
+    text = entries.map(e=>`• ${e.sender} on ${e.dateOnly}, attempted but failed to transfer ${e.amountDisplay} USDT to ${e.receiver}. (TronScan.io, Txn Hash: ${e.hash})`).join('\n');
+  }else{
+    text = entries.map(e=>`• ${e.sender} on ${e.dateOnly}, attempted but failed to transfer ${e.amountDisplay} USDT to ${e.receiver}.`).join('\n');
+  }
+  navigator.clipboard.writeText(text).then(()=>showToast('Copied to clipboard')).catch(()=>showToast('Copy failed', true));
+ });
+
+ rtfBtn.addEventListener('click', ()=>{
+  if(entries.length===0 || viewMode!=='statements'){ showToast('No content', true); return; }
+  const rtf = generateRTF();
+  downloadFile(rtf, 'usdt-tron-failed-transfer.rtf', 'application/rtf');
+  showToast('RTF downloaded');
+ });
+
+ csvSingleBtn.addEventListener('click', ()=>{
+  if(entries.length===0){ showToast('No content', true); return; }
+  const header = 'Sender,Relationship,Receiver,USDT(Attempted),DateOnly,Txn Hash';
+  const rows = entries.map(e=>[
+    escCSV(e.sender),
+    escCSV('Failed Transfer'),
+    escCSV(e.receiver),
+    escCSV(e.amountInt),
+    escCSV(e.dateOnly),
+    escCSV(e.hash)
+  ].join(','));
+  downloadFile([header,...rows].join('\n'),'internal-failed-transfer.csv','text/csv');
+  showToast('Internal CSV downloaded');
+ });
+
+ csvNodeEdgeBtn.addEventListener('click', ()=>{
+  if(entries.length===0){ showToast('No content', true); return; }
+  const nodeMap = new Map(); let id=1;
+  function idFor(label){ if(!nodeMap.has(label)) nodeMap.set(label,id++); return nodeMap.get(label); }
+  entries.forEach(e=>{ idFor(e.sender); idFor(e.receiver); });
+
+  const nodes = ['NodeID,Label'];
+  nodeMap.forEach((nid,label)=> nodes.push(`${nid},${escCSV(label)}`));
+
+  const edges = ['SourceNodeID,TargetNodeID,Relationship,AttemptedUSDT,DateOnly,TxnHash'];
+  entries.forEach(e=>{
+    edges.push(`${idFor(e.sender)},${idFor(e.receiver)},${escCSV('Failed Transfer')},${escCSV(e.amountInt)},${escCSV(e.dateOnly)},${escCSV(e.hash)}`);
+  });
+
+  const content = ['--- Nodes ---',...nodes,'','--- Edges ---',...edges].join('\n');
+  downloadFile(content,'internal-failed-transfer-nodeedge.csv','text/csv');
+  showToast('Node/Edge CSV downloaded');
+ });
+
+ // === Vendor Graph CSV ===
+ csvVendorGraphBtn.addEventListener('click', ()=>{
+  if(entries.length===0){ showToast('No content', true); return; }
+  const header = 'Type,Chain,Txn Hash,Timestamp,From,To,Asset,Value,Value USD,Notes';
+  const rows = entries.map(e=>{
+    const notes = `${e.sender} on ${e.dateOnly}, attempted but failed to transfer ${e.amountDisplay} USDT to ${e.receiver}. (TronScan.io, Txn Hash: ${e.hash})`;
+    return [
+      escCSV('transfer'),
+      escCSV('trx'),
+      escCSV(e.hash),
+      escCSV(e.timestampZ),
+      escCSV(e.sender),
+      escCSV(e.receiver),
+      escCSV('USDT'),
+      escCSV('0'),
+      escCSV('0'),
+      escCSV(notes)
+    ].join(',');
+  });
+  downloadFile([header,...rows].join('\n'),'transfers-vendor-graph.csv','text/csv');
+  showToast('Vendor Graph CSV downloaded');
+ });
+
+ // === Vendor Address CSV (Asset includes narrative per request) ===
+ csvVendorAddressBtn.addEventListener('click', ()=>{
+  if(entries.length===0){ showToast('No content', true); return; }
+  const header = 'Date,Txn Hash,Address,Counterparties,Direction,Amount,Amount USD,Asset,Running Balance Raw,Selected Address';
+  const rows = entries.map(e=>{
+    return [
+      escCSV(e.timestampZ), // Date
+      escCSV(e.hash),       // Txn Hash
+      escCSV(e.receiver),   // Address (counterparty)
+      escCSV(''),           // Counterparties (blank)
+      escCSV('OUT'),        // Direction
+      escCSV('0'),          // Amount
+      escCSV('0'),          // Amount USD
+      escCSV(`USDT (Failed transfer attempt ${e.amountDisplay} USDT)`), // Asset with narrative amount
+      escCSV(''),           // Running Balance Raw (blank)
+      escCSV(e.sender)      // Selected Address (subject)
+    ].join(',');
+  });
+  downloadFile([header,...rows].join('\n'),'transfers-vendor-address.csv','text/csv');
+  showToast('Vendor Address CSV downloaded');
+ });
+
+ walletsCsvBtn.addEventListener('click', ()=>{
+  if(entries.length===0){ showToast('No addresses to export', true); return; }
+  const sets = computeSets();
+  const header = 'Address';
+  const rows = sets.all.map(w=>escCSV(w));
+  downloadFile([header,...rows].join('\n'),'addresses-deduped.csv','text/csv');
+  showToast('All addresses (deduped) CSV downloaded');
+ });
+
+ leadsCsvBtn.addEventListener('click', ()=>{
+  const sets = computeSets();
+  if(sets.leads.length===0){ showToast('No leads to export', true); return; }
+  const header = 'LeadAddress';
+  const rows = sets.leads.map(w=>escCSV(w));
+  downloadFile([header,...rows].join('\n'),'lead-addresses.csv','text/csv');
+  showToast('Leads (deduped) CSV downloaded');
+ });
+
+ // === Init ===
+ loadClipboard();
+ renderInputPreview();
+ renderOutput();
+ renderClipboardMeta();
+</script>
+</body>
+</html>
