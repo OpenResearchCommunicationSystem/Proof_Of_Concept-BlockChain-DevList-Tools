@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tron Ownership List → Plain Language Clipboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --background:#fff;--foreground:#171717;--muted:#f5f5f5;--muted-foreground:#737373;
+    --primary:#0066cc;--primary-foreground:#fff;--border:#e5e5e5;--card:#fafafa;--card-border:#e5e5e5;--radius:8px;
+    --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);line-height:1.6;margin:0}
+  .container{max-width:900px;margin:0 auto;padding:40px 16px}
+  h1{font-size:22px;margin:0 0 6px;font-weight:600}
+  .subtitle{color:var(--muted-foreground);font-size:14px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;margin-bottom:16px}
+  textarea,input{width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:14px;background:var(--background);color:var(--foreground)}
+  textarea{min-height:160px}
+  .row{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:768px){.row-2{grid-template-columns:1fr 1fr}}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:var(--radius);border:1px solid var(--border);background:#fff;cursor:pointer}
+  .btn-primary{background:var(--primary);color:var(--primary-foreground);border:none}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .toggle{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .toggle button{flex:1;padding:8px 12px;background:#fff;border:none;cursor:pointer;color:var(--muted-foreground)}
+  .toggle button.active{background:var(--primary);color:#fff}
+  .output{min-height:140px}
+  .list{list-style:disc;padding-left:20px;margin:0}
+  .footnotes{border-top:1px solid var(--border);margin-top:12px;padding-top:12px}
+  .toast{position:fixed;bottom:24px;right:24px;background:#171717;color:#fff;padding:10px 14px;border-radius:8px;opacity:0;transform:translateY(100px);transition:.3s}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .graph-row{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0}
+  .graph-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--primary);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:600}
+  .graph-edge{flex:1;display:flex;flex-direction:column;align-items:center}
+  .graph-line{width:100%;height:2px;background:var(--primary)}
+  .graph-label{font-size:12px;color:var(--muted-foreground);text-align:center}
+  .inline{display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Tron Ownership List → Plain Language Clipboard</h1>
+    <p class="subtitle">Paste the TronScan “Owner permission” block. We’ll parse owners & weights, detect Threshold (even on the next line), and produce exportable statements with provenance.</p>
+  </header>
+
+  <!-- Input -->
+  <div class="card">
+    <div class="row">
+      <label for="paste">Paste TronScan Owner Permission Block</label>
+      <textarea id="paste" placeholder="Permission Name:
+owner
+Threshold:
+2
+Authorized To:
+Address
+Weight
+TJSLZ5jErvsaXpv5Q5JnmXjAaF6YeX1BAG
+(Current Account)
+1
+TPqnu4Xtdr1Jf2RT1taac1CH1pTo7TbU2a
+1
+TM2wWqC6GV6mifY64VnWyDNq2AaPKEqB4x
+1"></textarea>
+    </div>
+    <div class="row row-2" style="margin-top:12px;">
+      <button id="parseBtn" class="btn btn-primary">Parse (Add to Clipboard)</button>
+      <button id="undoBtn" class="btn" disabled>Undo Last Add</button>
+      <button id="clearBtn" class="btn">Clear Clipboard</button>
+    </div>
+    <div class="inline" style="margin-top:10px;">
+      <label class="inline" for="persistToggle">
+        <input type="checkbox" id="persistToggle" checked>
+        Persist clipboard in this browser
+      </label>
+    </div>
+    <p class="subtitle" style="margin-top:6px;">
+      Subject is auto‑detected from the line containing <code>(Current Account)</code> (even if it’s on the next line). That line is stripped; all other lines are co‑owners.
+    </p>
+  </div>
+
+  <!-- Existing Display (preview of parsed input) -->
+  <div class="card">
+    <div class="toggle" id="inputToggle">
+      <button data-mode="table" class="active">Table</button>
+      <button data-mode="graph">Graph</button>
+    </div>
+    <div id="inputPreview" class="output" style="margin-top:12px;white-space:pre-wrap;color:#333;"></div>
+  </div>
+
+  <!-- Output Preview (statements + citation mode + leads tab) -->
+  <div class="card">
+    <div class="toggle" id="viewToggle">
+      <button data-view="statements" class="active">Statements</button>
+      <button data-view="graph">Graph</button>
+      <button data-view="leads">Leads</button>
+    </div>
+
+    <div class="toggle" id="citeToggle" style="margin-top:8px;">
+      <button data-mode="none" class="active">No Cite</button>
+      <button data-mode="inline">In‑Text Cite</button>
+      <button data-mode="footnote">Footnote Cite</button>
+    </div>
+
+    <div id="statementsArea" class="output" style="margin-top:12px;">
+      <ul id="statementsList" class="list"></ul>
+      <div id="footnotes" class="footnotes" style="display:none;">
+        <strong>Footnotes</strong>
+        <ol id="footnotesList" style="margin:6px 0 0 18px;"></ol>
+      </div>
+      <div id="graphArea" style="display:none;"></div>
+      <div id="leadsArea" style="display:none;">
+        <ul id="leadsList" class="list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export / Clipboard -->
+  <div class="card">
+    <div id="clipboardMeta" class="subtitle" style="margin-bottom:8px;">
+      Clipboard: 0 statements
+    </div>
+    <div class="row row-2">
+      <button id="copyBtn" class="btn" disabled>Copy as Plain Text</button>
+      <button id="rtfBtn" class="btn btn-primary" disabled>Download RTF (Word)</button>
+      <button id="csvSingleBtn" class="btn" disabled>CSV (Single Table)</button>
+      <button id="csvNodeEdgeBtn" class="btn" disabled>CSV (Node/Edge)</button>
+      <button id="provBtn" class="btn" disabled>PROV‑O JSON‑LD</button>
+      <button id="walletsCsvBtn" class="btn" disabled>CSV (All Wallets Deduped)</button>
+      <button id="leadsCsvBtn" class="btn" disabled>CSV (Leads Deduped)</button>
+    </div>
+    <p class="subtitle" style="margin-top:10px;">RTF includes true Word footnotes. JSON‑LD uses W3C PROV‑O. Processing is local in your browser.</p>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // --- State ---
+  let parsed = { subject: null, threshold: null, objects: [] }; // objects: [{address, weight}]
+  let entries = [];           // clipboard statements (accumulates across pastes)
+  let batches = [];           // batch sizes per parse (for Undo Last Add)
+  let citeMode = "none";      // none | inline | footnote
+  let viewMode = "statements"; // statements | graph | leads
+  let inputMode = "table";    // table | graph
+
+  // --- Elements ---
+  const pasteEl = document.getElementById('paste');
+  const parseBtn = document.getElementById('parseBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const persistToggle = document.getElementById('persistToggle');
+
+  const inputToggle = document.getElementById('inputToggle');
+  const viewToggle = document.getElementById('viewToggle');
+  const citeToggle = document.getElementById('citeToggle');
+
+  const inputPreview = document.getElementById('inputPreview');
+  const statementsList = document.getElementById('statementsList');
+  const footnotesBox = document.getElementById('footnotes');
+  const footnotesList = document.getElementById('footnotesList');
+  const graphArea = document.getElementById('graphArea');
+  const leadsArea = document.getElementById('leadsArea');
+  const leadsList = document.getElementById('leadsList');
+
+  const copyBtn = document.getElementById('copyBtn');
+  const rtfBtn = document.getElementById('rtfBtn');
+  const csvSingleBtn = document.getElementById('csvSingleBtn');
+  const csvNodeEdgeBtn = document.getElementById('csvNodeEdgeBtn');
+  const provBtn = document.getElementById('provBtn');
+  const walletsCsvBtn = document.getElementById('walletsCsvBtn');
+  const leadsCsvBtn = document.getElementById('leadsCsvBtn');
+
+  const toastEl = document.getElementById('toast');
+  const clipboardMeta = document.getElementById('clipboardMeta');
+
+  // --- Persistence ---
+  const LS_KEY = 'tronOwnershipClipboardEntries';
+  const LS_BATCH_KEY = 'tronOwnershipClipboardBatches';
+  const LS_PERSIST_KEY = 'tronOwnershipPersist';
+
+  function saveClipboard(){
+    if(!persistToggle.checked) return;
+    localStorage.setItem(LS_KEY, JSON.stringify(entries));
+    localStorage.setItem(LS_BATCH_KEY, JSON.stringify(batches));
+  }
+  function loadClipboard(){
+    const persistVal = localStorage.getItem(LS_PERSIST_KEY);
+    if(persistVal !== null) persistToggle.checked = (persistVal === 'true');
+    if(persistToggle.checked){
+      const e = localStorage.getItem(LS_KEY);
+      const b = localStorage.getItem(LS_BATCH_KEY);
+      if(e){ try{ entries = JSON.parse(e)||[]; }catch{} }
+      if(b){ try{ batches = JSON.parse(b)||[]; }catch{} }
+    }
+  }
+  persistToggle.addEventListener('change', ()=>{
+    localStorage.setItem(LS_PERSIST_KEY, persistToggle.checked ? 'true' : 'false');
+    if(!persistToggle.checked){
+      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_BATCH_KEY);
+      showToast('Persistence disabled; clipboard will not be saved to browser.');
+    }else{
+      saveClipboard();
+      showToast('Persistence enabled; clipboard saved to browser.');
+    }
+  });
+
+  // --- Utilities ---
+  function showToast(msg, isError=false){
+    toastEl.textContent = msg;
+    toastEl.style.background = isError ? '#dc2626' : '#171717';
+    toastEl.classList.add('show');
+    setTimeout(()=>toastEl.classList.remove('show'), 2500);
+  }
+  function todayLocalYYYYMMDD(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  function escapeRtf(text){
+    return String(text).replace(/\\/g,'\\\\').replace(/\{/g,'\\{').replace(/\}/g,'\\}');
+  }
+  function downloadFile(content, filename, mime){
+    const blob = new Blob([content], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  function escCSV(val){
+    const s=String(val);
+    if(s.includes('"')||s.includes(',')||s.includes('\n')) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  }
+  function renderClipboardMeta(){
+    clipboardMeta.textContent = `Clipboard: ${entries.length} statement${entries.length===1?'':'s'}`;
+    undoBtn.disabled = batches.length === 0;
+  }
+
+  // Compute sets for All Wallets & Leads
+  function computeSets(){
+    const subjects = new Set();
+    const objects = new Set();
+    entries.forEach(e => { subjects.add(e.subject); objects.add(e.object); });
+    const all = new Set([...subjects, ...objects]);
+    const leads = new Set([...objects].filter(x => !subjects.has(x)));
+    // return sorted arrays for display/export
+    const sortAsc = arr => arr.slice().sort((a,b)=>a.localeCompare(b));
+    return {
+      subjects: sortAsc([...subjects]),
+      objects: sortAsc([...objects]),
+      all: sortAsc([...all]),
+      leads: sortAsc([...leads])
+    };
+  }
+
+  // --- Option A Parsing (cross-line subject & threshold) ---
+  function parseTronScanOwnerBlock(raw){
+    // Split lines, trim, keep empties (for lookahead)
+    const linesRaw = raw.split(/\r?\n/);
+    const lines = linesRaw.map(l => l.trim());
+
+    let threshold = null;
+    let subject = null;
+    const objects = [];
+
+    // Pass 1: Threshold on same line or next non-empty line
+    for(let i=0;i<lines.length;i++){
+      if(/^Threshold:\s*$/i.test(lines[i]) || /^Threshold:\s*\d+/i.test(lines[i])){
+        const same = lines[i].match(/^Threshold:\s*(\d+)/i);
+        if(same){ threshold = parseInt(same[1],10); break; }
+        for(let j=i+1;j<lines.length;j++){
+          const next = lines[j].trim();
+          if(next.length===0) continue;
+          const m = next.match(/^(\d+)$/);
+          if(m){ threshold = parseInt(m[1],10); }
+          break;
+        }
+        if(threshold!==null) break;
+      }
+    }
+
+    // Pass 2: walk addresses, remember lastAddress; detect (Current Account) on same or next line
+    let lastAddress = null;
+    const addrRe = /(T[a-zA-Z0-9]{33})/;      // Tron address (34 chars, starting with T)
+    const intLineRe = /^\s*(\d+)\s*$/;        // standalone integer line
+
+    for(let i=0;i<lines.length;i++){
+      const line = lines[i];
+
+      const addrMatch = line.match(addrRe);
+      if(addrMatch){
+        lastAddress = addrMatch[1];
+
+        // Detect "(Current Account)" on same line or next non-empty line
+        let isCurrentAccount = /\(Current Account\)/.test(line);
+        if(!isCurrentAccount){
+          for(let j=i+1;j<lines.length;j++){
+            const la = lines[j].trim();
+            if(la.length===0) continue;
+            if(/\(Current Account\)/.test(la)){
+              isCurrentAccount = true;
+            }
+            break; // stop at first non-empty line
+          }
+        }
+
+        if(isCurrentAccount){
+          subject = lastAddress;
+          continue; // do not add subject as object
+        }
+
+        // For non-subject addresses, attempt to capture weight
+        let weight = null;
+
+        // Same line trailing int
+        const tailInt = line.match(/(\d+)\s*$/);
+        if(tailInt){ weight = parseInt(tailInt[1],10); }
+        else {
+          // Weight may be the next non-empty, standalone int line
+          for(let j=i+1;j<lines.length;j++){
+            const next = lines[j].trim();
+            if(next.length===0) continue;
+            const soloInt = next.match(intLineRe);
+            if(soloInt){
+              weight = parseInt(soloInt[1],10);
+            }
+            break; // stop at first non-empty line whether int or not
+          }
+        }
+
+        if(weight!==null){
+          objects.push({ address: lastAddress, weight });
+        }
+      }
+      // If line is "(Current Account)" only, no action.
+    }
+
+    return { subject, threshold, objects };
+  }
+
+  // --- Build entries (statements) from parsed data (APPEND to clipboard) ---
+  function buildEntriesFromParsed(p){
+    const sourceStr = `TronScan.IO On ${todayLocalYYYYMMDD()}`;
+    const T = (p.threshold != null) ? p.threshold : '—';
+    let added = 0;
+    p.objects.forEach(obj => {
+      const rel = `shares ownership with (Weight ${obj.weight}; Threshold ${T})`;
+      entries.push({
+        subject: p.subject || '(Unknown Subject)',
+        predicate: rel,
+        object: obj.address,
+        source: sourceStr
+      });
+      added++;
+    });
+    batches.push(added); // record batch size for Undo
+  }
+
+  // --- Rendering: input preview
+  function renderInputPreview(){
+    if(!parsed.subject && !parsed.objects.length){
+      inputPreview.textContent = 'Paste the TronScan block and click Parse.';
+      return;
+    }
+    if(inputMode==='table'){
+      const rows = [];
+      rows.push(`Subject (Current Account): ${parsed.subject || '—'}`);
+      rows.push(`Threshold: ${parsed.threshold ?? '—'}`);
+      rows.push(`Owners:`);
+      parsed.objects.forEach(o=>{
+        rows.push(`  ${o.address}   Weight ${o.weight}`);
+      });
+      inputPreview.textContent = rows.join('\n');
+    }else{ // graph
+      inputPreview.innerHTML = '';
+      const S = parsed.subject || 'S';
+      parsed.objects.forEach(o=>{
+        const div = document.createElement('div'); div.className='graph-row';
+        const s = document.createElement('div'); s.className='graph-circle'; s.textContent='S';
+        const sLabel = document.createElement('div'); sLabel.className='graph-label'; sLabel.textContent=S;
+        const left = document.createElement('div'); left.style.display='flex'; left.style.flexDirection='column'; left.style.alignItems='center';
+        left.appendChild(s); left.appendChild(sLabel);
+
+        const edge = document.createElement('div'); edge.className='graph-edge';
+        const elabel = document.createElement('div'); elabel.className='graph-label';
+        elabel.textContent = `shares ownership (W ${o.weight}; Thr ${parsed.threshold ?? '—'})`;
+        const line = document.createElement('div'); line.className='graph-line';
+        edge.appendChild(elabel); edge.appendChild(line);
+
+        const oWrap = document.createElement('div'); oWrap.style.display='flex'; oWrap.style.flexDirection='column'; oWrap.style.alignItems='center';
+        const oCircle = document.createElement('div'); oCircle.className='graph-circle'; oCircle.textContent='O';
+        const oLabel = document.createElement('div'); oLabel.className='graph-label'; oLabel.textContent=o.address;
+        oWrap.appendChild(oCircle); oWrap.appendChild(oLabel);
+
+        div.appendChild(left); div.appendChild(edge); div.appendChild(oWrap);
+        inputPreview.appendChild(div);
+      });
+    }
+  }
+
+  // --- Rendering: output (statements / graph / leads) according to citeMode & viewMode
+  function renderOutput(){
+    const has = entries.length>0;
+
+    // Button enablement
+    const leads = computeSets().leads;
+    copyBtn.disabled = !has || viewMode!=='statements';
+    rtfBtn.disabled = !has || viewMode!=='statements';
+    csvSingleBtn.disabled = !has;
+    csvNodeEdgeBtn.disabled = !has;
+    provBtn.disabled = !has;
+    walletsCsvBtn.disabled = !has;
+    leadsCsvBtn.disabled = leads.length===0;
+
+    // Areas visibility
+    statementsList.innerHTML='';
+    graphArea.style.display = (viewMode==='graph' && has) ? 'block' : 'none';
+    leadsArea.style.display = (viewMode==='leads' && has) ? 'block' : 'none';
+    footnotesBox.style.display = (citeMode==='footnote' && viewMode==='statements' && has) ? 'block' : 'none';
+
+    if(!has){
+      footnotesList.innerHTML = '';
+      graphArea.innerHTML = '';
+      leadsList.innerHTML = '';
+      renderClipboardMeta();
+      return;
+    }
+
+    if(viewMode==='statements'){
+      // Statements view
+      entries.forEach((e,i)=>{
+        const li=document.createElement('li');
+        const span=document.createElement('span');
+        span.textContent = `${e.subject} ${e.predicate} ${e.object}`;
+        if(citeMode==='inline'){
+          span.textContent += ` (${e.source})`;
+        }else if(citeMode==='footnote'){
+          const sup=document.createElement('sup'); sup.textContent = (i+1);
+          span.appendChild(sup);
+        }
+        li.appendChild(span); statementsList.appendChild(li);
+      });
+      // Footnotes
+      if(citeMode==='footnote'){
+        footnotesList.innerHTML='';
+        entries.forEach((e)=>{
+          const li=document.createElement('li');
+          li.textContent = e.source;
+          footnotesList.appendChild(li);
+        });
+      }
+      graphArea.innerHTML='';
+      leadsList.innerHTML='';
+    }else if(viewMode==='graph'){
+      // Graph view
+      graphArea.innerHTML='';
+      leadsList.innerHTML='';
+      entries.forEach(e=>{
+        const row=document.createElement('div'); row.className='graph-row';
+        const s=document.createElement('div'); s.className='graph-circle'; s.textContent='S';
+        const sLabel=document.createElement('div'); sLabel.className='graph-label'; sLabel.textContent=e.subject;
+        const left=document.createElement('div'); left.style.display='flex'; left.style.flexDirection='column'; left.style.alignItems='center';
+        left.appendChild(s); left.appendChild(sLabel);
+
+        const edge=document.createElement('div'); edge.className='graph-edge';
+        const elabel=document.createElement('div'); elabel.className='graph-label'; elabel.textContent=e.predicate;
+        const line=document.createElement('div'); line.className='graph-line'; edge.appendChild(elabel); edge.appendChild(line);
+
+        const oWrap=document.createElement('div'); oWrap.style.display='flex'; oWrap.style.flexDirection='column'; oWrap.style.alignItems='center';
+        const oC=document.createElement('div'); oC.className='graph-circle'; oC.textContent='O';
+        const oLabel=document.createElement('div'); oLabel.className='graph-label'; oLabel.textContent=e.object;
+        oWrap.appendChild(oC); oWrap.appendChild(oLabel);
+
+        row.appendChild(left); row.appendChild(edge); row.appendChild(oWrap);
+        graphArea.appendChild(row);
+      });
+    }else{
+      // Leads view
+      graphArea.innerHTML='';
+      footnotesList.innerHTML='';
+      leadsList.innerHTML='';
+      const sets = computeSets();
+      sets.leads.forEach(addr=>{
+        const li=document.createElement('li');
+        li.textContent = addr;
+        leadsList.appendChild(li);
+      });
+    }
+
+    renderClipboardMeta();
+  }
+
+  // --- RTF generation (with footnotes when citeMode==='footnote' in statements view)
+  function generateRTF(){
+    let r = "{\\rtf1\\ansi\\deff0\n{\\fonttbl{\\f0\\fnil Arial;}}\n\\pard\\f0\\fs22\n";
+    entries.forEach((e)=>{
+      const stmt = `${escapeRtf(e.subject)} ${escapeRtf(e.predicate)} ${escapeRtf(e.object)}`;
+      const src = escapeRtf(e.source);
+      r += "{\\pntext\\f0 \\bullet\\tab}{\\*\\pn\\pnlvlblt\\pnf0\\pnindent0{\\pntxtb \\bullet}}\\fi-360\\li720\n";
+      if(citeMode==='footnote'){
+        r += `${stmt}{\\super\\chftn}{\\footnote\\pard\\plain\\fs20 {\\super\\chftn} ${src}\\par}\\par\n`;
+      }else if(citeMode==='inline'){
+        r += `${stmt} (${src})\\par\n`;
+      }else{
+        r += `${stmt}\\par\n`;
+      }
+    });
+    r += "}";
+    return r;
+  }
+
+  // --- Events: Parse / Undo / Clear
+  parseBtn.addEventListener('click', ()=>{
+    const raw = pasteEl.value;
+    parsed = parseTronScanOwnerBlock(raw);
+
+    let hadError = false;
+    if(!parsed.subject){
+      showToast('Subject (Current Account) not found. Ensure the paste includes that marker.', true);
+      hadError = true;
+    }
+    if(parsed.objects.length===0){
+      showToast('No owner addresses with weights found.', true);
+      hadError = true;
+    }
+
+    if(hadError){
+      // Keep the paste so you can fix and re-parse
+      return;
+    }
+
+    // Append new statements to clipboard + record batch
+    buildEntriesFromParsed(parsed);
+
+    // Persist if enabled
+    saveClipboard();
+
+    // Auto-clear input and reset preview state (ready for next paste)
+    pasteEl.value = '';
+    parsed = { subject:null, threshold:null, objects:[] };
+
+    // Re-render outputs and clipboard counter
+    renderInputPreview();
+    renderOutput();
+    showToast('Parsed successfully. Ready for next paste');
+  });
+
+  undoBtn.addEventListener('click', ()=>{
+    if(batches.length===0){ return; }
+    const count = batches.pop() || 0;
+    if(count>0){
+      entries.splice(entries.length - count, count);
+      saveClipboard();
+      renderOutput();
+      showToast(`Undid last add (${count} statement${count===1?'':'s'})`);
+    }
+  });
+
+  clearBtn.addEventListener('click', ()=>{
+    pasteEl.value='';
+    parsed = { subject:null, threshold:null, objects:[] };
+    entries = [];             // empty the cart
+    batches = [];
+    saveClipboard();          // overwrites saved clipboard with empty arrays (if persist on)
+    renderInputPreview();
+    renderOutput();
+    showToast('Clipboard cleared');
+  });
+
+  // --- Toggles
+  inputToggle.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    inputMode = btn.getAttribute('data-mode');
+    inputToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderInputPreview();
+  });
+
+  viewToggle.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    viewMode = btn.getAttribute('data-view');
+    viewToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOutput();
+  });
+
+  citeToggle.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    citeMode = btn.getAttribute('data-mode');
+    citeToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderOutput();
+  });
+
+  // --- Copy / Downloads
+  copyBtn.addEventListener('click', ()=>{
+    if(entries.length===0 || viewMode!=='statements'){ showToast('Nothing to copy', true); return; }
+    let text='';
+    if(citeMode==='footnote'){
+      text = entries.map((e,i)=>`• ${e.subject} ${e.predicate} ${e.object} [${i+1}]`).join('\n')
+           + '\n\n' + entries.map((e,i)=>`${i+1}. ${e.source}`).join('\n');
+    }else if(citeMode==='inline'){
+      text = entries.map(e=>`• ${e.subject} ${e.predicate} ${e.object} (${e.source})`).join('\n');
+    }else{
+      text = entries.map(e=>`• ${e.subject} ${e.predicate} ${e.object}`).join('\n');
+    }
+    navigator.clipboard.writeText(text).then(()=>showToast('Copied to clipboard')).catch(()=>showToast('Copy failed', true));
+  });
+
+  rtfBtn.addEventListener('click', ()=>{
+    if(entries.length===0 || viewMode!=='statements'){ showToast('No content', true); return; }
+    const rtf = generateRTF();
+    downloadFile(rtf, 'tron-ownership-statements.rtf', 'application/rtf');
+    showToast('RTF downloaded');
+  });
+
+  csvSingleBtn.addEventListener('click', ()=>{
+    if(entries.length===0){ showToast('No content', true); return; }
+    const header = 'Subject,Relationship,Object,Source';
+    const rows = entries.map(e=>[escCSV(e.subject),escCSV(e.predicate),escCSV(e.object),escCSV(e.source)].join(','));
+    downloadFile([header,...rows].join('\n'),'tron-ownership-single.csv','text/csv');
+    showToast('CSV (single) downloaded');
+  });
+
+  csvNodeEdgeBtn.addEventListener('click', ()=>{
+    if(entries.length===0){ showToast('No content', true); return; }
+    // Build node IDs
+    const nodeMap = new Map(); let id=1;
+    function idFor(label){ if(!nodeMap.has(label)) nodeMap.set(label,id++); return nodeMap.get(label); }
+    entries.forEach(e=>{ idFor(e.subject); idFor(e.object); });
+    // Nodes
+    const nodes = ['NodeID,Label'];
+    nodeMap.forEach((nid,label)=> nodes.push(`${nid},${escCSV(label)}`));
+    // Edges (Relationship string only, per your spec)
+    const edges = ['SourceNodeID,TargetNodeID,Relationship'];
+    entries.forEach(e=>{
+      edges.push(`${idFor(e.subject)},${idFor(e.object)},${escCSV(e.predicate)}`);
+    });
+    const content = ['--- Nodes ---',...nodes,'','--- Edges ---',...edges].join('\n');
+    downloadFile(content,'tron-ownership-nodeedge.csv','text/csv');
+    showToast('CSV (node/edge) downloaded');
+  });
+
+  provBtn.addEventListener('click', ()=>{
+    if(entries.length===0){ showToast('No content', true); return; }
+    const prov = {
+      "@context": { prov: "http://www.w3.org/ns/prov#", rdfs: "http://www.w3.org/2000/01/rdf-schema#" },
+      "@graph": entries.map((e,i)=>{
+        const sid = `_:stmt${i+1}`, srcId = `_:src${i+1}`;
+        return {
+          "@id": sid,
+          "@type": "prov:Entity",
+          "rdfs:label": `${e.subject} ${e.predicate} ${e.object}`,
+          "prov:wasDerivedFrom": {
+            "@id": srcId,
+            "@type": "prov:Entity",
+            "rdfs:label": e.source
+          }
+        };
+      })
+    };
+    downloadFile(JSON.stringify(prov,null,2),'tron-ownership.jsonld','application/ld+json');
+    showToast('JSON‑LD downloaded');
+  });
+
+  walletsCsvBtn.addEventListener('click', ()=>{
+    if(entries.length===0){ showToast('No wallets to export', true); return; }
+    const sets = computeSets();
+    const header = 'Wallet';
+    const rows = sets.all.map(w=>escCSV(w));
+    downloadFile([header,...rows].join('\n'),'tron-wallets-deduped.csv','text/csv');
+    showToast('All wallets (deduped) CSV downloaded');
+  });
+
+  leadsCsvBtn.addEventListener('click', ()=>{
+    const sets = computeSets();
+    if(sets.leads.length===0){ showToast('No leads to export', true); return; }
+    const header = 'LeadWallet';
+    const rows = sets.leads.map(w=>escCSV(w));
+    downloadFile([header,...rows].join('\n'),'tron-leads-deduped.csv','text/csv');
+    showToast('Leads (deduped) CSV downloaded');
+  });
+
+  // Initial load & render
+  loadClipboard();
+  renderInputPreview();
+  renderOutput();
+  renderClipboardMeta();
+</script>
+</body>
+</html>
